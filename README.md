@@ -1,58 +1,84 @@
-# LLM Inference Benchmark Harness
-
-A lightweight benchmarking harness for measuring **LLM inference throughput and latency** using an OpenAI-compatible endpoint (e.g., vLLM).
-
-This project helps evaluate GPU inference performance across different concurrency levels.
-
-## Features
-
-- Measures request latency
-- Estimates tokens/sec throughput
-- Supports configurable concurrency
-- Outputs results to CSV
-- Optional visualization of scaling curves
-
-## Requirements
-
-- Python 3.10+
-- vLLM running locally or remotely
-- OpenAI-compatible API endpoint
-
-Example server:
-
-python -m vllm.entrypoints.openai.api_server \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --host 0.0.0.0 \
-  --port 8000
-
-## Install
-
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-## Run Benchmark
-
-python bench.py \
-  --model Qwen/Qwen2.5-7B-Instruct \
-  --concurrency 1,2,4,8,16 \
-  --max-tokens 256 \
-  --requests-per-worker 3 \
-  --out results/run_1.csv
-
-## Plot Results
-
-python plot_results.py
-
-Outputs
-
-results/run_1.csv  
+LLM Inference Benchmark Harness
+A lightweight Python harness for benchmarking LLM inference servers under increasing concurrency.
+The goal is to measure throughput scaling and latency behavior (p50 / p95 / p99) as load increases and identify the saturation point of an inference system.
+This harness targets OpenAI-compatible endpoints such as:
+vLLM
+Triton Inference Server
+TensorRT-LLM
+OpenAI API-compatible gateways
+What This Measures
+For each concurrency level the harness records:
+number of requests
+elapsed wall time
+requests/sec
+tokens/sec
+latency p50
+latency p95
+latency p99
+mean latency
+The benchmark sweeps across increasing concurrency levels and produces plots showing:
+Throughput scaling
+Tail latency growth
+These curves make it easy to identify when the system transitions from efficient utilization to queueing and saturation.
+Example Output
+Throughput vs Concurrency
+Shows how token throughput scales with increased load.
+Latency Percentiles vs Concurrency
+Shows the growth of tail latency as concurrency increases.
+Repository Structure
+Project files:
+bench.py
+plot_results.py
+prompts.json
+requirements.txt
+README.md
+Results folder:
+results/run_1.csv
+results/run_2.csv
 results/throughput.png
-
-## Future Work
-
-- Compare vLLM vs HuggingFace Transformers
-- Compare GPU types (4090 vs A100 vs H100)
-- Add latency percentiles
-- Add streaming benchmarks
-
+results/latency_percentiles.png
+Running the Benchmark
+Step 1 — Start an inference server
+Example using vLLM:
+python -m vllm.entrypoints.openai.api_server
+--model Qwen/Qwen2.5-7B-Instruct
+--host 0.0.0.0
+--port 8000
+This exposes an OpenAI-compatible endpoint at:
+http://localhost:8000/v1/completions
+Step 2 — Run the concurrency sweep
+python bench.py
+--model Qwen/Qwen2.5-7B-Instruct
+--concurrency 1,2,4,8,16,24,32,48,64
+--max-tokens 256
+--requests-per-worker 5
+--out results/run_2.csv
+This generates:
+results/run_2.csv
+Step 3 — Generate plots
+python plot_results.py
+This produces:
+results/throughput.png
+results/latency_percentiles.png
+Example Results
+A typical benchmark pattern looks like:
+Throughput scales nearly linearly at low concurrency
+Eventually throughput plateaus
+Tail latency (p95/p99) grows rapidly
+This indicates the system saturation region
+This harness makes it easy to visualize that transition.
+Why This Project Exists
+LLM inference performance is often reported using single-request latency, which hides how systems behave under real load.
+This harness focuses on concurrency-driven saturation testing, a more realistic method for evaluating:
+GPU utilization
+batching efficiency
+scheduler behavior
+inference server scalability
+Future Work
+Potential extensions include:
+Triton vs vLLM comparison
+TensorRT-LLM backend comparison
+token throughput normalization
+streaming token latency
+GPU utilization tracking
+License
