@@ -9,7 +9,7 @@ Triton Inference Server
 TensorRT-LLM
 OpenAI API-compatible gateways
 
-# What I measure
+## What I measure
 For each concurrency level the harness records:
 number of requests
 elapsed wall time
@@ -26,7 +26,7 @@ The benchmark sweeps across increasing concurrency levels and produces plots sho
 
 These curves make it easy to identify when the system transitions from efficient utilization to queueing and saturation.
 
-# Example Output
+## Example Output
 Throughput vs Concurrency
 
 shows how token throughput scales with increased load
@@ -35,7 +35,7 @@ Latency Percentiles vs Concurrency
 
 shows the growth of tail latency as concurrency increases
 
-# Running the Benchmark
+## Running the Benchmark
 Step 1 — Start an inference server
 
 Example using vLLM:
@@ -68,7 +68,7 @@ This produces:
 results/throughput.png
 results/latency_percentiles.png
 
-# Example Results
+## Example Results
 A typical benchmark pattern looks like:
 - throughput scales nearly linearly at low concurrency
 - eventually throughput plateaus
@@ -77,7 +77,19 @@ A typical benchmark pattern looks like:
 - 
 This harness makes it easy to visualize that transition.
 
-# Why did I build this?
+## Benchmark Results
+
+### Run 1 — Initial Throughput Sweep
+
+![Run1](results/throughput_run_1.png)
+
+### Run 2 — Concurrency Sweep with Latency Percentiles
+
+![Run2 Throughput](results/throughput_run_2.png)
+
+![Run2 Latency](results/latency_run_2.png)
+
+### Why did I build this?
 LLM inference performance is often reported using single-request latency, which hides how systems behave under real load.
 
 This harness focuses on concurrency-driven saturation testing, a more realistic method for evaluating:
