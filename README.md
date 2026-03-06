@@ -1,103 +1,164 @@
 # LLM Inference Benchmark Harness
+
 A lightweight Python harness for benchmarking LLM inference servers under increasing concurrency.
 
-The goal is to measure throughput scaling and latency behavior (p50 / p95 / p99) as load increases and identify the saturation point of an inference system.
+The goal is to measure **throughput scaling and latency behavior (p50 / p95 / p99)** as load increases and identify the **saturation point of an inference system**.
 
-This harness targets OpenAI-compatible endpoints such as:
-vLLM
-Triton Inference Server
-TensorRT-LLM
-OpenAI API-compatible gateways
+The harness targets **OpenAI-compatible endpoints**, including:
 
-## What I measure
-For each concurrency level the harness records:
-number of requests
-elapsed wall time
-requests/sec
-tokens/sec
-latency p50
-latency p95
-latency p99
-mean latency
+- vLLM  
+- Triton Inference Server  
+- TensorRT-LLM  
+- OpenAI API-compatible gateways  
 
-The benchmark sweeps across increasing concurrency levels and produces plots showing:
-1. Throughput scaling
-2. Tail latency growth
+---
 
-These curves make it easy to identify when the system transitions from efficient utilization to queueing and saturation.
+# What This Harness Measures
 
-## Example Output
-Throughput vs Concurrency
+For each concurrency level the benchmark records:
 
-shows how token throughput scales with increased load
+- number of requests
+- elapsed wall time
+- requests/sec
+- tokens/sec
+- latency p50
+- latency p95
+- latency p99
+- mean latency
 
-Latency Percentiles vs Concurrency
+The harness sweeps across increasing concurrency levels and produces plots showing:
 
-shows the growth of tail latency as concurrency increases
+1. **Throughput scaling**
+2. **Tail latency growth**
 
-## Running the Benchmark
-Step 1 — Start an inference server
+These curves make it easy to identify when the system transitions from efficient utilization to **queueing and saturation**.
 
-Example using vLLM:
+---
 
-python -m vllm.entrypoints.openai.api_server
---model Qwen/Qwen2.5-7B-Instruct
---host 0.0.0.0
---port 8000
+# Running the Benchmark
 
-This exposes an OpenAI-compatible endpoint at:
+## Step 1 — Start an inference server
 
+Example using **vLLM**:
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+This exposes an OpenAI-compatible endpoint:
+
+```
 http://localhost:8000/v1/completions
+```
 
-### Step 2 — Run the concurrency sweep
-python bench.py
---model Qwen/Qwen2.5-7B-Instruct
---concurrency 1,2,4,8,16,24,32,48,64
---max-tokens 256
---requests-per-worker 5
---out results/run_2.csv
+---
+
+## Step 2 — Run the concurrency sweep
+
+```bash
+python bench.py \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --concurrency 1,2,4,8,16,24,32,48,64 \
+  --max-tokens 256 \
+  --requests-per-worker 5 \
+  --out results/max_tokens_256.csv
+```
 
 This generates:
-results/run_2.csv
 
-### Step 3 — Generate plots
+```
+results/max_tokens_256.csv
+```
 
+---
+
+## Step 3 — Generate plots
+
+```bash
 python plot_results.py
+```
 
 This produces:
-results/throughput.png
-results/latency_percentiles.png
 
-## Example Results
-A typical benchmark pattern looks like:
-- throughput scales nearly linearly at low concurrency
-- eventually throughput plateaus
-- tail latency (p95/p99) grows rapidly
-- this indicates the system saturation region
-- 
-This harness makes it easy to visualize that transition.
+```
+results/throughput_*.png
+results/latency_*.png
+```
 
-## Benchmark Results
+---
 
-### Run 1 — Initial Throughput Sweep
+# Example Benchmark Results
 
-![Run1](results/throughput_run_1.png)
+Experiments were run with three generation workloads:
 
-### Run 2 — Concurrency Sweep with Latency Percentiles
+| max_tokens | Workload Type |
+|------------|--------------|
+| 64 | short responses |
+| 256 | typical assistant responses |
+| 512 | long generations |
 
-![Run2 Throughput](results/throughput_run_2.png)
+---
 
-![Run2 Latency](results/latency_run_2.png)
+## Throughput (max_tokens = 256)
 
-### Why did I build this?
-LLM inference performance is often reported using single-request latency, which hides how systems behave under real load.
+<img src="results/throughput_max_tokens_256.png" width="700">
 
-This harness focuses on concurrency-driven saturation testing, a more realistic method for evaluating:
+---
+
+## Latency Percentiles (max_tokens = 256)
+
+<img src="results/latency_max_tokens_256.png" width="700">
+
+---
+
+# Key Observation
+
+Across all workloads the system saturated at approximately:
+
+```
+~1800 tokens/sec
+```
+
+on an **RTX 4090**.
+
+What I found / observed:
+
+- token throughput remained nearly constant across workloads
+- request throughput decreased as generation length increased
+- latency scaled roughly linearly with `max_tokens`
+- saturation occurred around **~32 concurrent requests**
+
+This confirms that **GPU decoding throughput becomes the primary bottleneck once the model is fully utilized.**
+
+---
+
+# My motivations to build this
+
+LLM inference performance is often reported using **single-request latency**, which hides how systems behave under real load.
+
+This harness focuses on **concurrency-driven saturation testing**, a more realistic way to evaluate:
+
 - GPU utilization
 - batching efficiency
 - scheduler behavior
 - inference server scalability
-  
+
+---
+
+# Future Work
+
+Next steps for this project:
+
+- compare **vLLM vs TensorRT-LLM**
+- measure **dynamic batching effects**
+- analyze **GPU utilization during saturation**
+
+---
+
 # License
-MIT
-# refresh
+
+MIT License  
+Marco Punio — 2026
