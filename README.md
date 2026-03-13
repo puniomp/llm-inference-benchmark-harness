@@ -9,7 +9,14 @@ The harness targets **OpenAI-compatible endpoints**, including:
 - vLLM  
 - Triton Inference Server  
 - TensorRT-LLM  
-- OpenAI API-compatible gateways  
+- OpenAI API-compatible gateways
+
+This project focuses on understanding **how GPU inference systems behave under load**, including:
+
+- batching efficiency
+- scheduler behavior
+- concurrency scaling
+- throughput saturation
 
 ---
 
@@ -90,7 +97,7 @@ results/latency_*.png
 
 ---
 
-# Example Benchmark Results
+# expirement 1 - Concurrency scaling
 
 Experiments were run with three generation workloads:
 
@@ -135,7 +142,55 @@ This confirms that **GPU decoding throughput becomes the primary bottleneck once
 
 ---
 
-# My motivations to build this
+## Expirement 2 - Dynamic Batching Behavior
+
+To better understand how inference schedulers handle request arrival patterns, a second expirement compared **burst arrivals** vs **staggered arrivals** near the system saturation point.
+
+The benchmark was run at concurrency levels:
+24, 32, 40
+
+with:
+max_tokens = 256
+
+### Arrival Patterns Tested
+
+Three arrival patterns were tested:
+
+| Pattern | Description |
+|-------|-------------|
+| burst | all requests start immediately |
+| staggered_25ms | each worker delayed by 25ms |
+| staggered_50ms | each worker delayed by 50ms |
+
+---
+
+### Throughput vs Arrival Pattern
+
+<img src="results/batching/throughput_stagger_compare.png" width="700">
+
+---
+
+### Results
+
+| Concurrency | Burst | Staggered 25ms | Staggered 50ms |
+|-------------|------|---------------|---------------|
+| 24 | ~1308 tokens/s | ~1291 tokens/s | ~1244 tokens/s |
+| 32 | **~1819 tokens/s** | ~1663 tokens/s | ~1584 tokens/s |
+| 40 | ~1684 tokens/s | ~1600 tokens/s | ~1556 tokens/s |
+
+---
+
+### Interpretation
+
+Peak throughput occurs under **burst arrivals**.
+
+Artificially staggering request arrivals slightly reduces throughput.
+
+This suggests that **vLLM’s continuous batching scheduler already efficiently handles bursty workloads**, forming large batches internally without requiring externally smoothed traffic.
+
+Modern inference engines rely on **request queues and token-level schedulers** to dynamically construct batches during decoding.
+
+### my motivations to build this
 
 LLM inference performance is often reported using **single-request latency**, which hides how systems behave under real load.
 
@@ -153,8 +208,9 @@ This harness focuses on **concurrency-driven saturation testing**, a more realis
 Next steps for this project:
 
 - compare **vLLM vs TensorRT-LLM**
-- measure **dynamic batching effects**
 - analyze **GPU utilization during saturation**
+- evaluate **multi-GPU inference scaling**
+- test **longer generation workloads (1k+ tokens)**
 
 ---
 
