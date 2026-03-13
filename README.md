@@ -97,6 +97,23 @@ results/latency_*.png
 
 ---
 
+# System Configuration
+
+All experiments were run with the following setup:
+
+| Component | Configuration |
+|----------|--------------|
+| GPU | NVIDIA RTX 4090 (24GB VRAM) |
+| Runtime | vLLM |
+| Model | Qwen/Qwen2.5-7B-Instruct |
+| API | OpenAI-compatible `/v1/completions` |
+| Prompt workload | prompts.json (explanatory prompts) |
+| Generation lengths tested | 64, 256, 512 tokens |
+| Benchmark driver | custom Python asyncio harness |
+| Request scheduling | burst + staggered arrival experiments |
+
+The benchmark focuses on **decoder-heavy inference workloads**, which are typically **memory bandwidth bound during autoregressive generation**.
+
 # expirement 1 - Concurrency scaling
 
 Experiments were run with three generation workloads:
