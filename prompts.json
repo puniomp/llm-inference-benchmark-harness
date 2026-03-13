@@ -1,0 +1,6 @@
+[
+  "Explain how GPU batching improves LLM inference throughput and the latency tradeoffs. Provide a concrete example with numbers.",
+  "Write a detailed explanation of KV cache in transformer decoding and why decode becomes memory-bandwidth bound.",
+  "Generate Python code for a simple async load tester that sends concurrent HTTP requests and measures p50/p95 latency.",
+  "Summarize: why optimized runtimes (vLLM/TensorRT-LLM) outperform naive PyTorch for autoregressive decoding."
+]
