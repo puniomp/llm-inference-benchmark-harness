@@ -114,7 +114,7 @@ All experiments were run with the following setup:
 
 The benchmark focuses on **decoder-heavy inference workloads**, which are typically **memory bandwidth bound during autoregressive generation**.
 
-# expirement 1 - Concurrency scaling
+## Expirement 1 - Concurrency scaling
 
 Experiments were run with three generation workloads:
 
