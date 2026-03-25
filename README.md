@@ -204,6 +204,8 @@ Experiments were conducted at:
 
 ---
 
+
+
 ### Interpretation
 
 These results indicate that **vLLM’s continuous batching scheduler is already optimized for bursty traffic**.
@@ -221,6 +223,62 @@ This reflects how modern inference engines operate:
 > They rely on internal request queues and token-level schedulers to construct optimal batches during autoregressive decoding, rather than depending on externally controlled traffic shaping.
 
 ---
+
+## Experiment 3 — Output Length Sensitivity Near Saturation
+
+To understand how workload shape impacts system performance, we evaluated latency and throughput near the saturation boundary while varying generation length.
+
+Experiments were conducted at:
+
+- concurrency: 24, 32, 40  
+- max_tokens: 64, 128, 256, 512  
+
+---
+
+### Results (32 Concurrency)
+
+| max_tokens | tokens/sec | p95 latency |
+|------------|-----------|------------|
+| 64 | ~1740 | ~1.17s |
+| 128 | ~1763 | ~2.32s |
+| 256 | ~1768 | ~4.63s |
+| 512 | ~similar throughput | ~higher latency |
+
+---
+
+### Key Observations
+
+- Throughput remains **relatively stable near saturation** across different output lengths  
+- Latency increases **approximately linearly with max_tokens**  
+- Increasing concurrency beyond saturation does not improve throughput  
+
+---
+
+### Interpretation
+
+At the saturation boundary, the system maintains high throughput due to efficient batching and GPU utilization.
+
+However, **tail latency increases significantly for longer generations**, indicating that response time is dominated by decode duration rather than scheduling inefficiencies.
+
+This reveals a key production insight:
+
+> Throughput alone is not sufficient to evaluate inference performance. Workload characteristics — especially output length — directly impact latency and user experience.
+
+---
+
+### Practical Implication
+
+Inference systems should be sized based on:
+
+- expected output length distributions  
+- latency SLOs (p95 / p99)  
+- not just peak tokens/sec capacity  
+
+This is particularly important for applications such as:
+
+- chat assistants (short responses)  
+- agent workflows (medium responses)  
+- code generation or summarization (long responses)  
 
 ### Motivation
 
