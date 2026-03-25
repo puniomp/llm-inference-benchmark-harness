@@ -132,7 +132,7 @@ Experiments were run with three generation workloads:
 
 ## Throughput (max_tokens = 256)
 
-<img src="results/concurrency/throughput_max_tokens_256.png" width="700">
+<img src="./results/concurrency/throughput_max_tokens_256.png" width="700">
 
 ---
 
