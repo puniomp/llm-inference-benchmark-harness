@@ -1,4 +1,5 @@
 # LLM Inference Benchmark Harness
+> Throughput can remain stable while latency doubles under different workload shapes — this project explores why.
 
 A lightweight Python harness for benchmarking LLM inference servers under increasing concurrency.
 
@@ -9,18 +10,21 @@ The harness targets **OpenAI-compatible endpoints**, including:
 - vLLM  
 - Triton Inference Server  
 - TensorRT-LLM  
-- OpenAI API-compatible gateways
+- OpenAI API-compatible gateways  
 
-This project focuses on understanding **how GPU inference systems behave under load**, including:
+This project studies how GPU-backed LLM inference systems behave under realistic, concurrency-driven load, with emphasis on:
 
-- batching efficiency
-- scheduler behavior
-- concurrency scaling
-- throughput saturation
+- batching efficiency  
+- scheduler behavior  
+- concurrency scaling  
+- throughput saturation  
+- **workload-dependent latency (output length sensitivity)**  
 
 ---
 
 # What This Harness Measures
+
+In particular, this work demonstrates that **throughput alone is an incomplete metric for evaluating LLM inference systems under load**.
 
 For each concurrency level the benchmark records:
 
@@ -114,7 +118,7 @@ All experiments were run with the following setup:
 
 The benchmark focuses on **decoder-heavy inference workloads**, which are typically **memory bandwidth bound during autoregressive generation**.
 
-## Expirement 1 - Concurrency scaling
+## Experiment 1 - Concurrency Scaling
 
 Experiments were run with three generation workloads:
 
@@ -128,17 +132,17 @@ Experiments were run with three generation workloads:
 
 ## Throughput (max_tokens = 256)
 
-<img src="results/throughput_max_tokens_256.png" width="700">
+<img src="results/concurrency/throughput_max_tokens_256.png" width="700">
 
 ---
 
 ## Latency Percentiles (max_tokens = 256)
 
-<img src="results/latency_max_tokens_256.png" width="700">
+<img src="results/concurrency/latency_max_tokens_256.png" width="700">
 
 ---
 
-# Key Observation
+### Key Observations
 
 Across all workloads the system saturated at approximately:
 
@@ -148,14 +152,12 @@ Across all workloads the system saturated at approximately:
 
 on an **RTX 4090**.
 
-What I found / observed:
-
 - token throughput remained nearly constant across workloads
 - request throughput decreased as generation length increased
 - latency scaled roughly linearly with `max_tokens`
 - saturation occurred around **~32 concurrent requests**
 
-This confirms that **GPU decoding throughput becomes the primary bottleneck once the model is fully utilized.**
+This indicates that once the GPU is fully utilized, the system transitions into a **decode-bound regime**, where throughput plateaus and latency becomes increasingly sensitive to request characteristics such as output length.
 
 ---
 
@@ -204,8 +206,6 @@ Experiments were conducted at:
 
 ---
 
-
-
 ### Interpretation
 
 These results indicate that **vLLM’s continuous batching scheduler is already optimized for bursty traffic**.
@@ -246,6 +246,14 @@ Experiments were conducted at:
 
 ---
 
+### Latency vs Output Length
+
+<img src="results/output_length/output_length_p95_latency.png" width="700">
+
+### Throughput vs Output Length
+
+<img src="results/output_length/output_length_throughput.png" width="700">
+
 ### Key Observations
 
 - Throughput remains **relatively stable near saturation** across different output lengths  
@@ -262,7 +270,28 @@ However, **tail latency increases significantly for longer generations**, indica
 
 This reveals a key production insight:
 
-> Throughput alone is not sufficient to evaluate inference performance. Workload characteristics — especially output length — directly impact latency and user experience.
+> Throughput alone is not sufficient to evaluate inference performance. Workload characteristics, especially output length, directly impact latency and user experience.
+
+---
+
+### GPU Profiling (Nsight Systems)
+
+To validate system behavior at saturation, a lightweight Nsight Systems profile was performed for a representative workload:
+
+- concurrency: 32  
+- max_tokens: 512  
+
+The profiling timeline showed:
+
+- sustained GPU activity throughout request processing  
+- minimal idle gaps between kernel executions  
+- consistent kernel execution patterns during decoding  
+
+This supports the earlier observation that:
+
+> Latency increases near saturation are driven by decode duration and queueing effects, rather than GPU underutilization.
+
+Raw profiling artifacts are not included in the repository.
 
 ---
 
@@ -278,7 +307,9 @@ This is particularly important for applications such as:
 
 - chat assistants (short responses)  
 - agent workflows (medium responses)  
-- code generation or summarization (long responses)  
+- code generation or summarization (long responses)
+
+---
 
 ### Motivation
 
@@ -292,6 +323,20 @@ This experiment focuses on **concurrency-driven load behavior**, providing a mor
 - system behavior near saturation  
 
 By simulating bursty and staggered traffic patterns, we better approximate real-world request distributions and uncover how inference systems behave under sustained load.
+
+---
+
+# System Insights
+
+This benchmark highlights several key properties of modern LLM inference systems:
+
+- **Saturation occurs at a concurrency threshold**, beyond which additional load increases latency without improving throughput  
+- **Throughput alone is not a sufficient performance metric** — tail latency reveals system stress earlier  
+- **Modern schedulers (e.g., vLLM) effectively handle bursty traffic**, reducing the need for external request smoothing  
+- **Decode-heavy workloads are memory-bandwidth bound**, leading to near-linear latency scaling with output length  
+- **Workload shape (output length, concurrency)** directly impacts system behavior and must be considered in capacity planning  
+
+These findings emphasize the importance of evaluating inference systems under realistic load conditions rather than relying solely on single-request benchmarks.
 
 ---
 
