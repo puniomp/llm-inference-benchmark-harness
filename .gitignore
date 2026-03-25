@@ -5,3 +5,9 @@ __pycache__/
 *.log
 results/*.log
 trtllm_env/
+
+# Profiling artifacts
+results/output_length/profiling/
+*.nsys-rep
+*.qdrep
+*.sqlite
