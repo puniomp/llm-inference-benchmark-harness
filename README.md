@@ -159,23 +159,22 @@ This confirms that **GPU decoding throughput becomes the primary bottleneck once
 
 ---
 
-## Expirement 2 - Dynamic Batching Behavior
+## Experiment 2 — Dynamic Batching Behavior
 
-To better understand how inference schedulers handle request arrival patterns, a second expirement compared **burst arrivals** vs **staggered arrivals** near the system saturation point.
+To better understand how inference schedulers handle request arrival patterns, we evaluated system performance under **burst** and **staggered** request arrivals near the saturation boundary.
 
-The benchmark was run at concurrency levels:
-24, 32, 40
+Experiments were conducted at:
 
-with:
-max_tokens = 256
+- concurrency: 24, 32, 40  
+- max_tokens: 256  
+
+---
 
 ### Arrival Patterns Tested
 
-Three arrival patterns were tested:
-
 | Pattern | Description |
-|-------|-------------|
-| burst | all requests start immediately |
+|--------|-------------|
+| burst | all requests start simultaneously |
 | staggered_25ms | each worker delayed by 25ms |
 | staggered_50ms | each worker delayed by 50ms |
 
@@ -197,26 +196,44 @@ Three arrival patterns were tested:
 
 ---
 
+### Key Observations
+
+- Peak throughput is achieved under **burst arrivals**
+- Staggering requests results in a **small but consistent reduction in throughput**
+- The effect is most pronounced near the **saturation point (32 concurrency)**
+
+---
+
 ### Interpretation
 
-Peak throughput occurs under **burst arrivals**.
+These results indicate that **vLLM’s continuous batching scheduler is already optimized for bursty traffic**.
 
-Artificially staggering request arrivals slightly reduces throughput.
+Even when requests arrive simultaneously, the scheduler efficiently:
 
-This suggests that **vLLM’s continuous batching scheduler already efficiently handles bursty workloads**, forming large batches internally without requiring externally smoothed traffic.
+- queues incoming requests  
+- dynamically forms large batches  
+- maximizes GPU utilization during decoding  
 
-Modern inference engines rely on **request queues and token-level schedulers** to dynamically construct batches during decoding.
+Artificially smoothing request arrivals does not improve performance and can slightly reduce batching efficiency.
 
-### my motivations to build this
+This reflects how modern inference engines operate:
 
-LLM inference performance is often reported using **single-request latency**, which hides how systems behave under real load.
+> They rely on internal request queues and token-level schedulers to construct optimal batches during autoregressive decoding, rather than depending on externally controlled traffic shaping.
 
-This harness focuses on **concurrency-driven saturation testing**, a more realistic way to evaluate:
+---
 
-- GPU utilization
-- batching efficiency
-- scheduler behavior
-- inference server scalability
+### Motivation
+
+LLM inference performance is often evaluated using **single-request latency**, which does not reflect real production conditions.
+
+This experiment focuses on **concurrency-driven load behavior**, providing a more realistic view of:
+
+- GPU utilization under load  
+- batching efficiency  
+- scheduler effectiveness  
+- system behavior near saturation  
+
+By simulating bursty and staggered traffic patterns, we better approximate real-world request distributions and uncover how inference systems behave under sustained load.
 
 ---
 
