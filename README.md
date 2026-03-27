@@ -184,7 +184,7 @@ Experiments were conducted at:
 
 ### Throughput vs Arrival Pattern
 
-<img src="results/batching/throughput_stagger_compare.png" width="700">
+![Throughput vs Arrival Pattern](results/batching/throughput_stagger_compare.png)
 
 ---
 
@@ -253,10 +253,6 @@ Experiments were conducted at:
 ### Throughput vs Output Length
 
 ![Throughput vs Output Length](results/output_length/output_length_throughput.png)
-
-## Throughput vs Arrival Pattern
-
-![Throughput vs Arrival Pattern](results/batching/throughput_stagger_compare.png)
 
 
 ### Key Observations
