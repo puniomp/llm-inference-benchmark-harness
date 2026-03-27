@@ -132,13 +132,13 @@ Experiments were run with three generation workloads:
 
 ## Throughput (max_tokens = 256)
 
-![Throughput plot](results/concurrency/throughput_max_tokens_256.png)
+![Throughput](results/concurrency/throughput_max_tokens_256.png)
 
 ---
 
 ## Latency Percentiles (max_tokens = 256)
 
-![Latency percentiles plot](results/concurrency/latency_max_tokens_256.png)
+![Latency Percentiles vs Concurrency](results/concurrency/latency_max_tokens_256.png)
 
 ---
 
@@ -248,11 +248,16 @@ Experiments were conducted at:
 
 ### Latency vs Output Length
 
-![P95 Latency vs Output Length](results/output_length/output_length_p95_latency.png)
+![Latency vs Output Length](results/output_length/output_length_p95_latency.png)
 
 ### Throughput vs Output Length
 
 ![Throughput vs Output Length](results/output_length/output_length_throughput.png)
+
+## Throughput vs Arrival Pattern
+
+![Throughput vs Arrival Pattern](results/batching/throughput_stagger_compare.png)
+
 
 ### Key Observations
 
