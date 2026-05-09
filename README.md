@@ -1,7 +1,7 @@
 # LLM Inference Benchmark Harness
-> Throughput can remain stable while latency doubles under different workload shapes — this project explores why.
+> Investigating how workload shape, batching behavior, and concurrency impact LLM inference throughput and tail latency under GPU saturation.
 
-A lightweight Python harness for benchmarking LLM inference servers under increasing concurrency.
+A Python benchmarking and profiling harness for evaluating LLM inference systems under concurrency-driven load. The experiments focus on production-relevant inference characteristics including queueing behavior, decode-phase saturation, batching efficiency, and workload-sensitive latency growth.
 
 The goal is to measure **throughput scaling and latency behavior (p50 / p95 / p99)** as load increases and identify the **saturation point of an inference system**.
 
@@ -12,7 +12,7 @@ The harness targets **OpenAI-compatible endpoints**, including:
 - TensorRT-LLM  
 - OpenAI API-compatible gateways  
 
-This project studies how GPU-backed LLM inference systems behave under realistic, concurrency-driven load, with emphasis on:
+This project studies how GPU-accelerated LLM inference systems behave under realistic, concurrency-driven load, with emphasis on:
 
 - batching efficiency  
 - scheduler behavior  
@@ -152,7 +152,7 @@ Across all workloads the system saturated at approximately:
 
 on an **RTX 4090**.
 
-- token throughput remained nearly constant across workloads
+- aggregate token throughput remained relatively stable
 - request throughput decreased as generation length increased
 - latency scaled roughly linearly with `max_tokens`
 - saturation occurred around **~32 concurrent requests**
@@ -341,14 +341,40 @@ These findings emphasize the importance of evaluating inference systems under re
 
 ---
 
+# PyTorch Profiler Analysis
+
+To better understand operator-level execution behavior during inference, a lightweight PyTorch Profiler workflow was added using:
+
+- PyTorch Profiler
+- Perfetto trace visualization
+- CUDA activity tracing
+
+The profiling workflow captured:
+
+- `aten::scaled_dot_product_attention`
+- Flash Attention execution paths
+- CUDA kernel dispatch activity
+- matrix multiplication operators (`aten::matmul`)
+- linear projection layers (`aten::linear`)
+
+This establishes a baseline workflow for analyzing:
+- operator-level bottlenecks
+- attention-heavy execution regions
+- CPU-to-GPU dispatch behavior
+- decode-phase execution characteristics
+
+Example Perfetto trace:
+
+![Perfetto Trace](results/profiling/images/Perfetto_trace.png)
+
 # Future Work
 
-Next steps for this project:
-
-- compare **vLLM vs TensorRT-LLM**
-- analyze **GPU utilization during saturation**
-- evaluate **multi-GPU inference scaling**
-- test **longer generation workloads (1k+ tokens)**
+- compare vLLM vs TensorRT-LLM scheduling behavior
+- analyze GPU kernel timelines with Nsight Systems
+- correlate throughput saturation with GPU utilization metrics
+- evaluate KV-cache pressure under long-context workloads
+- benchmark multi-GPU inference scaling and NCCL communication overhead
+- analyze batching efficiency under heterogeneous request mixes
 
 ---
 
