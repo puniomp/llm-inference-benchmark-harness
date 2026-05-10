@@ -365,7 +365,7 @@ This establishes a baseline workflow for analyzing:
 
 Example Perfetto trace:
 
-![Perfetto Trace](results/profiling/images/Perfetto_trace.png)
+![Perfetto Trace](results/profiling/images/Perfetto_trace_file.png)
 
 # Future Work
 
