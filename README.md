@@ -48,6 +48,60 @@ These curves make it easy to identify when the system transitions from efficient
 
 # Running the Benchmark
 
+## Running Against OpenAI-Compatible Hosted Endpoints
+
+The harness can target local inference servers or hosted providers that expose
+OpenAI-compatible APIs. Use:
+
+- `--api-type completions` for `/v1/completions`
+- `--api-type chat` for `/v1/chat/completions`
+
+You can validate the chat request shape without any provider key:
+
+```bash
+python tests/test_llm_client.py
+```
+
+Before a benchmark run, validate auth, model access, and payload compatibility
+with one tiny request. For Together AI:
+
+```bash
+export TOGETHER_API_KEY="your_key_here"
+
+python validate_endpoint.py \
+  --base-url https://api.together.xyz \
+  --api-type chat \
+  --api-key-env TOGETHER_API_KEY \
+  --model meta-llama/Llama-3.3-70B-Instruct-Turbo
+```
+
+Then run a benchmark smoke test against the same endpoint:
+
+```bash
+python bench.py \
+  --base-url https://api.together.xyz \
+  --api-type chat \
+  --model meta-llama/Llama-3.3-70B-Instruct-Turbo \
+  --concurrency 1,2,4 \
+  --max-tokens 128 \
+  --requests-per-worker 2 \
+  --out results/together_smoke.csv
+```
+
+If that succeeds, scale up gradually:
+
+```bash
+python bench_experiments.py \
+  --base-url https://api.together.xyz \
+  --api-type chat \
+  --model meta-llama/Llama-3.3-70B-Instruct-Turbo \
+  --concurrency 1,2,4,8,16 \
+  --max-tokens 256 \
+  --requests-per-worker 3 \
+  --run-label together_llama_3_3_70b \
+  --out results/together_llama_3_3_70b.csv
+```
+
 ## Step 1 — Start an inference server
 
 Example using **vLLM**:

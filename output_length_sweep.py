@@ -1,12 +1,14 @@
 import argparse
 import subprocess
 import os
+import sys
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
     ap.add_argument("--model", required=True)
+    ap.add_argument("--api-type", choices=["completions", "chat"], default="completions")
     ap.add_argument("--concurrency", default="24,32,40")
     ap.add_argument("--max-tokens-list", default="64,128,256,512")
     ap.add_argument("--requests-per-worker", type=int, default=3)
@@ -25,10 +27,11 @@ def main():
 
     for mt in max_tokens_list:
         cmd = [
-            "python",
+            sys.executable,
             "bench_experiments.py",
             "--base-url", args.base_url,
             "--model", args.model,
+            "--api-type", args.api_type,
             "--max-tokens", str(mt),
             "--concurrency", args.concurrency,
             "--requests-per-worker", str(args.requests_per_worker),

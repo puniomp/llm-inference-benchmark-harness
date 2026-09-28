@@ -4,30 +4,9 @@ import time
 import statistics
 import argparse
 
-import requests
 import pandas as pd
 
-
-def call_once(base_url: str, model: str, prompt: str, max_tokens: int):
-    t0 = time.time()
-    r = requests.post(
-        f"{base_url}/v1/completions",
-        headers={"Content-Type": "application/json"},
-        json={
-            "model": model,
-            "prompt": prompt,
-            "max_tokens": max_tokens,
-            "temperature": 0,
-        },
-        timeout=600,
-    )
-    r.raise_for_status()
-    t1 = time.time()
-
-    data = r.json()
-    usage = data.get("usage", {})
-    out_tokens = usage.get("completion_tokens", 0) or 0
-    return (t1 - t0), out_tokens
+from llm_client import call_once
 
 
 async def run_concurrency(
@@ -37,6 +16,7 @@ async def run_concurrency(
     max_tokens: int,
     concurrency: int,
     requests_per_worker: int,
+    api_type: str,
     arrival_pattern: str = "burst",
     stagger_ms: int = 0,
 ):
@@ -49,7 +29,7 @@ async def run_concurrency(
         latencies, out_toks = [], []
         for _ in range(requests_per_worker):
             dt, ot = await loop.run_in_executor(
-                None, call_once, base_url, model, prompt, max_tokens
+                None, call_once, base_url, model, prompt, max_tokens, api_type
             )
             latencies.append(dt)
             out_toks.append(ot)
@@ -87,6 +67,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://127.0.0.1:8000")
     ap.add_argument("--model", required=True)
+    ap.add_argument("--api-type", choices=["completions", "chat"], default="completions")
     ap.add_argument("--max-tokens", type=int, default=256)
     ap.add_argument("--concurrency", type=str, default="24,32,40")
     ap.add_argument("--requests-per-worker", type=int, default=3)
@@ -113,6 +94,7 @@ def main():
                 args.max_tokens,
                 c,
                 args.requests_per_worker,
+                args.api_type,
                 args.arrival_pattern,
                 args.stagger_ms,
             )
