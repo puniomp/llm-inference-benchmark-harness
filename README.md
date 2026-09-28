@@ -102,6 +102,27 @@ python bench_experiments.py \
   --out results/together_llama_3_3_70b.csv
 ```
 
+## Together AI Light Sweep
+
+For Together AI specifically, `together_light_sweep.py` runs a conservative
+hosted-API sweep with defaults intended for light-to-moderate load:
+
+```bash
+python together_light_sweep.py --yes
+```
+
+Before sending requests, the script prints the estimated total request count
+and maximum generated-token budget. Without `--yes`, it asks for interactive
+confirmation.
+
+This measurement is different from the local dedicated-GPU saturation
+experiments below. Together's hosted API runs on shared, rate-limited
+infrastructure, so slowdowns, tail-latency growth, or HTTP 429 responses cannot
+be attributed directly to GPU capacity or scheduler saturation the way they can
+when you control the inference server and hardware. Treat this sweep as a
+hosted endpoint behavior check under light-to-moderate client load, not as a
+claim about Together's hardware saturation point.
+
 ## Step 1 — Start an inference server
 
 Example using **vLLM**:
