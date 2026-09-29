@@ -123,6 +123,38 @@ when you control the inference server and hardware. Treat this sweep as a
 hosted endpoint behavior check under light-to-moderate client load, not as a
 claim about Together's hardware saturation point.
 
+### Example Run (Illustrative Only)
+
+Model: `meta-llama/Llama-3.3-70B-Instruct-Turbo`  
+Generation length: `max_tokens=256`
+
+| Concurrency | tokens/sec | p50 latency | p95 latency | p99 latency |
+|-------------|------------|-------------|-------------|-------------|
+| 1 | 71 tok/s | 3.60s | 3.97s | 4.01s |
+| 2 | 125 tok/s | 4.03s | 4.80s | 4.90s |
+| 4 | 193 tok/s | 3.84s | 5.91s | 5.97s |
+| 8 | 423 tok/s | 3.69s | 5.95s | 5.99s |
+| 16 | 566 tok/s | 4.85s | 6.01s | 6.09s |
+
+This is a single sample run against shared, third-party infrastructure,
+included for illustration only. Unlike the local GPU experiments below, it is
+not reproducible on demand, and the exact numbers will vary by time of day,
+model, and current load on Together's platform. Do not present it with the same
+permanence as Experiment 1/2/3.
+
+Two observations are useful from this run. First, throughput scaled roughly
+linearly across the tested range with no plateau, meaning this test did not
+approach any real capacity ceiling. Second, p50 latency stayed relatively flat
+across concurrency levels while p95 grew from about 4.0s to about 6.0s,
+consistent with tail-latency queueing effects appearing before the median is
+affected.
+
+This is not a like-for-like comparison with the local experiments. The hosted
+model here, `Llama-3.3-70B-Instruct-Turbo`, is roughly 10x larger than the
+locally tested `Qwen2.5-7B-Instruct`, so higher absolute latency is expected
+independent of any infrastructure difference. The meaningful comparison is the
+shape of the curves, not the raw numbers.
+
 ## Step 1 — Start an inference server
 
 Example using **vLLM**:
