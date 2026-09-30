@@ -39,6 +39,11 @@ Warmup requests were run before measurement and were not included in the result 
 - Requests/sec: completed requests / benchmark wall-clock duration.
 
 Input/output token counts were obtained through vLLM tokenization during the run.
+Because streaming APIs may emit multi-token text chunks, ITL here is a
+request-level average decode cadence computed from first-token and last-token
+timestamps plus tokenizer-derived output token counts. The reported P50/P95 ITL
+values are percentiles across those per-request averages, not percentiles over
+every individual token gap.
 
 ## Measured Results
 
@@ -92,6 +97,11 @@ The observed prefill-heavy behavior is consistent with transformer inference exp
 The observed decode-heavy behavior is consistent with decode-phase token generation dominating long-output latency, and with common expectations that autoregressive decode can become memory-bandwidth-sensitive. However, this experiment alone does not prove that decode was memory-bandwidth-bound.
 
 Validating those hypotheses would require hardware-level and runtime-level evidence, such as SM occupancy, memory bandwidth counters, kernel timelines, vLLM scheduler queue depth, KV-cache behavior, and per-phase prefill/decode timing from the serving runtime.
+
+The GPU telemetry collected here is intentionally coarse. NVIDIA-SMI polling is
+useful context for utilization, but memory-used values can reflect allocated or
+reserved memory, including model weights and KV-cache reservation, rather than
+the dynamic working set of an individual request.
 
 ## Plots
 
