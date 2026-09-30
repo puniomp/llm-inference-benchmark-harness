@@ -48,6 +48,125 @@ These curves make it easy to identify when the system transitions from efficient
 
 # Running the Benchmark
 
+## Streaming Interactivity Benchmark
+
+For TTFT, ITL, per-user generation speed, and throughput/interactivity analysis,
+use `streaming_perf_bench.py`. This script uses streaming responses so it can
+measure the time from request submission to the first generated token and the
+generation interval after the first token arrives.
+
+### Metric Formulas
+
+For each request:
+
+- Request latency = request completion timestamp - request submission timestamp
+- TTFT = first non-empty streamed delta timestamp - request submission timestamp
+- Decode duration = last streamed token timestamp - first streamed token timestamp
+- ITL = decode duration / (`output_tokens - 1`)
+- TPOT = (request latency - TTFT) / `output_tokens`
+- Output tokens/sec/user = (`output_tokens - 1`) / decode duration
+
+For each benchmark run:
+
+- Aggregate output tokens/sec = total generated output tokens / benchmark
+  wall-clock duration
+- Requests/sec = completed requests / benchmark wall-clock duration
+- Input tokens, output tokens, and total tokens are recorded separately where
+  tokenization is available
+
+Output token counts use the vLLM `/tokenize` endpoint when available. If that
+endpoint is unavailable, the script falls back to counting streamed text events
+and records the stream event count so the limitation is visible. Warmup runs
+are intentionally excluded from result files.
+
+### Start vLLM
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+### Warm Up
+
+```bash
+python streaming_perf_bench.py \
+  --experiment warmup \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --input-tokens 128 \
+  --max-tokens 128 \
+  --requests-per-worker 2
+```
+
+### Experiment 1: Concurrency Sweep
+
+```bash
+python streaming_perf_bench.py \
+  --experiment concurrency \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --concurrency 1,8,32,64,128,256 \
+  --input-tokens 128 \
+  --max-tokens 128 \
+  --requests-per-worker 2 \
+  --out-dir results/streaming/concurrency \
+  --yes
+```
+
+This writes:
+
+```text
+results/streaming/concurrency/concurrency_raw.csv
+results/streaming/concurrency/concurrency_summary.csv
+results/streaming/concurrency/concurrency_metadata.json
+```
+
+### Experiment 2: Workload Shape
+
+```bash
+python streaming_perf_bench.py \
+  --experiment workload-shape \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --workload-concurrency 16 \
+  --requests-per-worker 2 \
+  --out-dir results/streaming/workload_shape \
+  --yes
+```
+
+The workload-shape benchmark runs:
+
+| Profile | Input tokens | Requested output tokens | Purpose |
+|---------|--------------|-------------------------|---------|
+| baseline_128in_128out | 128 | 128 | Balanced baseline |
+| prefill_4096in_128out | ~4096 | 128 | Prefill-heavy workload |
+| decode_128in_2048out | 128 | ~2048 | Decode-heavy workload |
+
+The benchmark records observations only. Do not assume a workload is
+compute-bound or memory-bound solely from throughput curves; treat such claims
+as hypotheses that require additional profiling.
+
+### Generate Plots and Report
+
+```bash
+python plot_streaming_results.py \
+  --summary-csv results/streaming/concurrency/concurrency_summary.csv \
+  --extra-summary-csv results/streaming/workload_shape/workload-shape_summary.csv \
+  --out-dir results/streaming/plots \
+  --report results/streaming/report.md
+```
+
+The generated plots include aggregate output tokens/sec vs concurrency,
+per-user output tokens/sec vs concurrency, TTFT P50/P95 vs concurrency, ITL
+P50/P95 vs concurrency, an interactivity-throughput frontier, and workload-shape
+comparisons. The report template separates measured observations from bottleneck
+hypotheses and lists additional profiling needed to validate those hypotheses.
+
 ## Running Against OpenAI-Compatible Hosted Endpoints
 
 The harness can target local inference servers or hosted providers that expose
