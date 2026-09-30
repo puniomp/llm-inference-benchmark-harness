@@ -220,6 +220,7 @@ def stream_once(
     api_key: Optional[str],
     request_id: str,
     input_tokens: Optional[int],
+    target_input_tokens: int,
 ) -> dict:
     payload = {
         "model": model,
@@ -302,7 +303,7 @@ def stream_once(
     return {
         "request_id": request_id,
         "input_tokens": input_tokens,
-        "target_input_tokens": profile["input_tokens"],
+        "target_input_tokens": target_input_tokens,
         "requested_output_tokens": max_tokens,
         "output_tokens": output_tokens,
         "stream_events": stream_event_count,
@@ -340,6 +341,7 @@ async def run_profile(args, profile: dict, concurrency: int, api_key: Optional[s
                 api_key,
                 request_id,
                 input_tokens,
+                profile["input_tokens"],
             )
             rows.append(row)
         return rows
