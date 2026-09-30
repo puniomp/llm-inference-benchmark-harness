@@ -46,6 +46,18 @@ These curves make it easy to identify when the system transitions from efficient
 
 ---
 
+## Key Takeaways
+
+- Aggregate throughput is not the same as user interactivity. Aggregate
+  output tokens/sec measures total system work; output tokens/sec/user measures
+  the streaming rate experienced by an individual request.
+- TTFT primarily exposes behavior before the first generated token, including
+  scheduling, admission, tokenization, and prefill.
+- ITL and tokens/sec/user characterize generation after the first token, which
+  is the part of latency users perceive during streaming output.
+- Workload shape matters: long inputs tend to stress the prefill side of the
+  request, while long outputs make decode duration dominate end-to-end latency.
+
 # Running the Benchmark
 
 ## Streaming Interactivity Benchmark
@@ -82,11 +94,16 @@ are intentionally excluded from result files.
 ### Start vLLM
 
 ```bash
-python -m vllm.entrypoints.openai.api_server \
-  --model Qwen/Qwen2.5-7B-Instruct \
+vllm serve Qwen/Qwen2.5-7B-Instruct \
   --host 0.0.0.0 \
-  --port 8000
+  --port 8000 \
+  --dtype bfloat16
 ```
+
+The H100 run in `results/streaming/report.md` used one NVIDIA H100 80GB HBM3
+GPU, vLLM `0.30.0`, PyTorch `2.13.0+cu130`, CUDA `13.0`, bfloat16 precision,
+and tensor parallel size 1. vLLM startup logs showed chunked prefill, prefix
+caching, FlashAttention 3, and CUDA graph capture enabled.
 
 ### Warm Up
 
@@ -98,7 +115,11 @@ python streaming_perf_bench.py \
   --api-type completions \
   --input-tokens 128 \
   --max-tokens 128 \
-  --requests-per-worker 2
+  --requests-per-worker 2 \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true"
 ```
 
 ### Experiment 1: Concurrency Sweep
@@ -114,6 +135,11 @@ python streaming_perf_bench.py \
   --max-tokens 128 \
   --requests-per-worker 2 \
   --out-dir results/streaming/concurrency \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true" \
+  --gpu-sample-interval-s 0.5 \
   --yes
 ```
 
@@ -136,6 +162,11 @@ python streaming_perf_bench.py \
   --workload-concurrency 16 \
   --requests-per-worker 2 \
   --out-dir results/streaming/workload_shape \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true" \
+  --gpu-sample-interval-s 0.5 \
   --yes
 ```
 
@@ -166,6 +197,80 @@ per-user output tokens/sec vs concurrency, TTFT P50/P95 vs concurrency, ITL
 P50/P95 vs concurrency, an interactivity-throughput frontier, and workload-shape
 comparisons. The report template separates measured observations from bottleneck
 hypotheses and lists additional profiling needed to validate those hypotheses.
+
+### End-to-End H100 Reproduction Commands
+
+On a CUDA H100 pod:
+
+```bash
+cd /workspace
+git clone https://github.com/puniomp/llm-inference-benchmark-harness.git
+cd llm-inference-benchmark-harness
+
+python3 -m pip install -U vllm pandas matplotlib
+
+nohup vllm serve Qwen/Qwen2.5-7B-Instruct \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --dtype bfloat16 > vllm.log 2>&1 &
+
+curl http://127.0.0.1:8000/v1/models
+```
+
+Then run warmup, measurement, and report generation:
+
+```bash
+python3 streaming_perf_bench.py \
+  --experiment warmup \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --input-tokens 128 \
+  --max-tokens 128 \
+  --requests-per-worker 2 \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true"
+
+python3 streaming_perf_bench.py \
+  --experiment concurrency \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --concurrency 1,8,32,64,128,256 \
+  --input-tokens 128 \
+  --max-tokens 128 \
+  --requests-per-worker 2 \
+  --out-dir results/streaming/concurrency \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true" \
+  --gpu-sample-interval-s 0.5 \
+  --yes
+
+python3 streaming_perf_bench.py \
+  --experiment workload-shape \
+  --base-url http://127.0.0.1:8000 \
+  --model Qwen/Qwen2.5-7B-Instruct \
+  --api-type completions \
+  --workload-concurrency 16 \
+  --requests-per-worker 2 \
+  --out-dir results/streaming/workload_shape \
+  --precision bfloat16 \
+  --tensor-parallel-size 1 \
+  --max-model-len 32768 \
+  --vllm-config "dtype=bfloat16,enable_chunked_prefill=true,enable_prefix_caching=true" \
+  --gpu-sample-interval-s 0.5 \
+  --yes
+
+python3 plot_streaming_results.py \
+  --summary-csv results/streaming/concurrency/concurrency_summary.csv \
+  --extra-summary-csv results/streaming/workload_shape/workload-shape_summary.csv \
+  --out-dir results/streaming/plots \
+  --report results/streaming/report.md
+```
 
 ## Running Against OpenAI-Compatible Hosted Endpoints
 
